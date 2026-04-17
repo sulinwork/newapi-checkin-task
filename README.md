@@ -56,10 +56,10 @@ wrangler login
 echo '[{"name":"站点名称","url":"https://api.example.com","session":"your_session","userId":"12345"}]' | wrangler secret put NEW_API_CONFIG
 
 # 可选：飞书通知
-echo 'bot_key' | wrangler FEI_SHU_BOT_KEY
+echo 'bot_key' | wrangler secret put  FEI_SHU_BOT_KEY
 
 #可选 是否开启HTTP触发任务的能力
-echo 'true' | wrangler ENABLE_HTTP_TRIGGER
+echo 'true' | wrangler secret put ENABLE_HTTP_TRIGGER
 
 ```
 
@@ -226,6 +226,3 @@ FEI_SHU_BOT_KEY=your_token
 ---
 
 如果这个项目对你有帮助，欢迎点个 ⭐ Star！
-'''
-
-print(readme_content)
