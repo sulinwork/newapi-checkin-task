@@ -1,6 +1,6 @@
-readme_content = '''# NewAPI Auto Checkin
+# NewAPI Auto Checkin
 
-[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/yourusername/newapi-checkin)
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/sulinwork/newapi-checkin-task)
 
 一个部署在 Cloudflare Workers 上的自动化签到脚本，支持多站点 New API 平台每日自动签到，支持多种消息推送通知。
 
