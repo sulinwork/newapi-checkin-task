@@ -50,7 +50,7 @@ wrangler login
 	- 找到 `user` 键，复制 `id` 字段的值
 
 #### 配置 Secrets
-
+你去Cloudflare后台配置也是一样的效果
 ```bash
 # 站点配置（JSON 格式）
 echo '[{"name":"站点名称","url":"https://api.example.com","session":"your_session","userId":"12345"}]' | wrangler secret put NEW_API_CONFIG
