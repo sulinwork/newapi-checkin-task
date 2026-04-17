@@ -17,7 +17,7 @@
 
 ### 1. 准备工作
 
-- [Node.js](https://nodejs.org/) 18+ 环境
+- [Node.js](https://nodejs.org/) 20+ 环境
 - [Cloudflare](https://dash.cloudflare.com) 账号
 - New API 站点的 Session Cookie 和 UserId
 
