@@ -16,8 +16,8 @@ interface CheckinResponse {
 	success: boolean;
 	message?: string;
 	data?: {
-		quota?: number; // 获得的额度
-		days?: number; // 连续签到天数
+		quota_awarded?: number; // 获得的额度
+		checkin_date?: string; // 连续签到天数
 	};
 }
 
@@ -121,7 +121,7 @@ async function sendNotification(env: Env, results: any[]): Promise<void> {
 		`详细结果:`,
 		...results.map(r => {
 			const icon = r.success ? '✅' : '❌';
-			const detail = r.data?.quota ? `(+${r.data.quota} 额度)` : '';
+			const detail = r.data?.quota_awarded ? `(+${r.data.quota_awarded} 额度)` : '';
 			return `${icon} ${r.site}: ${r.message || '未知'} ${detail}`;
 		})
 	];
