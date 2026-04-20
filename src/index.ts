@@ -2,7 +2,15 @@ export interface Env {
 	// 在 Cloudflare Dashboard > Workers > 你的 Worker > Variables 中设置
 	NEW_API_CONFIG: string; // JSON 格式的站点配置数组 用NewApiConfig对象解析
 	FEI_SHU_BOT_KEY?: string; // 可选：PushPlus 推送 Token
+	WECHAT_ILINK?: string; //微信的ilink协议
 	ENABLE_HTTP_TRIGGER?: boolean;//是否开启http触发的能力
+
+}
+
+interface WechatILinkConfig {
+	baseUrl?: string;
+	token: string;
+	userId: string;
 }
 
 interface NewApiConfig {
@@ -114,7 +122,7 @@ async function sendNotification(env: Env, results: any[]): Promise<void> {
 	// 构建通知内容
 	const messageLines = [
 		`📅 New API 自动签到报告`,
-		`⏰ 时间: ${new Date().toLocaleString('zh-CN',{ timeZone: 'Asia/Shanghai' })}`,
+		`⏰ 时间: ${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}`,
 		`✅ 成功: ${successCount} 个`,
 		`❌ 失败: ${failCount} 个`,
 		``,
@@ -130,6 +138,48 @@ async function sendNotification(env: Env, results: any[]): Promise<void> {
 
 	console.log(message);
 
+	await sendWechatILink(env, message);
+
+	await sendFeiShuNotify(env, message);
+}
+
+async function sendWechatILink(env: Env, message: string): Promise<void> {
+	if (env.WECHAT_ILINK) {
+
+		const { token, userId, baseUrl }: WechatILinkConfig = JSON.parse(env.WECHAT_ILINK);
+
+		const uin = btoa(String(Math.floor(Math.random() * 4294967295)));
+		fetch(`${baseUrl || 'https://ilinkai.weixin.qq.com'}/ilink/bot/sendmessage`, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				'AuthorizationType': 'ilink_bot_token',
+				'Authorization': `Bearer ${token}`,
+				'X-WECHAT-UIN': uin
+			},
+			body: JSON.stringify({
+				base_info: { channel_version: '2.0.0' },
+				msg: {
+					client_id: generateClientId(),
+					to_user_id: userId,  // 目标用户 ID
+					message_type: 2,                      // 2 = 发送消息
+					message_state: 2,
+					// context_token: "上下文token",          // 回复时必须带上对方消息里的 context_token
+					item_list: [
+						{
+							type: 1,                          // 1 = 文本
+							text_item: { text: message }
+						}
+					]
+				}
+			})
+		}).catch(error => {
+			sendFeiShuNotify(env, '发送微信iLink信息异常：' + error.message);
+		});
+	}
+}
+
+async function sendFeiShuNotify(env: Env, message: string) {
 	if (env.FEI_SHU_BOT_KEY) {
 		try {
 			await fetch(`https://open.feishu.cn/open-apis/bot/v2/hook/${env.FEI_SHU_BOT_KEY}`, {
@@ -143,7 +193,6 @@ async function sendNotification(env: Env, results: any[]): Promise<void> {
 						}
 					})
 			});
-			console.log('推送成功');
 		} catch (e) {
 			console.error('推送失败:', e);
 		}
@@ -152,4 +201,14 @@ async function sendNotification(env: Env, results: any[]): Promise<void> {
 
 function sleep(ms: number): Promise<void> {
 	return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// 生成 X-WECHAT-UIN：随机 uint32 → 字符串 → base64
+function randomWechatUin() {
+	const value = Math.floor(Math.random() * 4294967296);
+	return Buffer.from(String(value), 'utf-8').toString('base64');
+}
+
+function generateClientId() {
+	return crypto.randomUUID();
 }
