@@ -36,6 +36,12 @@ export default {
 	 * 暴露HTTP接口的能力
 	 */
 	async fetch(req, env) {
+		const url = new URL(req.url);
+		console.log('url.pathname:', url.pathname);
+		if (url.pathname !== '/') {
+			return new Response();
+		}
+
 		if (env.ENABLE_HTTP_TRIGGER) {
 			const result = await doCheckin(env);
 			return new Response(JSON.stringify(result, null, 2), {
@@ -144,12 +150,12 @@ async function sendNotification(env: Env, results: any[]): Promise<void> {
 }
 
 async function sendWechatILink(env: Env, message: string): Promise<void> {
+	console.log(env.WECHAT_ILINK);
 	if (env.WECHAT_ILINK) {
-
-		const { token, userId, baseUrl }: WechatILinkConfig = JSON.parse(env.WECHAT_ILINK);
+		const { token, userId }: WechatILinkConfig = JSON.parse(env.WECHAT_ILINK);
 
 		const uin = btoa(String(Math.floor(Math.random() * 4294967295)));
-		fetch(`${baseUrl || 'https://ilinkai.weixin.qq.com'}/ilink/bot/sendmessage`, {
+		fetch('https://ilinkai.weixin.qq.com/ilink/bot/sendmessage', {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
