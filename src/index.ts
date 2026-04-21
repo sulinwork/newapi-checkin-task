@@ -1,3 +1,5 @@
+import { runMain } from 'node:module';
+
 export interface Env {
 	// 在 Cloudflare Dashboard > Workers > 你的 Worker > Variables 中设置
 	NEW_API_CONFIG: string; // JSON 格式的站点配置数组 用NewApiConfig对象解析
@@ -135,7 +137,7 @@ async function sendNotification(env: Env, results: any[]): Promise<void> {
 		`详细结果:`,
 		...results.map(r => {
 			const icon = r.success ? '✅' : '❌';
-			const detail = r.data?.quota_awarded ? `(+${r.data.quota_awarded} 额度)` : '';
+			const detail = r.data?.quota_awarded ? `(+${renderQuota(r.data.quota_awarded)} 额度)` : '';
 			return `${icon} ${r.site}: ${r.message || '未知'} ${detail}`;
 		})
 	];
@@ -218,3 +220,15 @@ function randomWechatUin() {
 function generateClientId() {
 	return crypto.randomUUID();
 }
+
+function renderQuota(quota: number, digits: number = 2) {
+	const quotaUnit = parseFloat('500000');
+	const result = quota / quotaUnit;
+	const fixedResult = result.toFixed(digits);
+	const symbol = '￥';
+	if (parseFloat(fixedResult) === 0 && quota > 0) {
+		return symbol + Math.pow(10, -digits).toFixed(digits);
+	}
+	return symbol + fixedResult;
+}
+
