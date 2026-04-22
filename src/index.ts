@@ -39,7 +39,6 @@ export default {
 	 */
 	async fetch(req, env) {
 		const url = new URL(req.url);
-		console.log('url.pathname:', url.pathname);
 		if (url.pathname !== '/') {
 			return new Response();
 		}
@@ -152,8 +151,8 @@ async function sendNotification(env: Env, results: any[]): Promise<void> {
 }
 
 async function sendWechatILink(env: Env, message: string): Promise<void> {
-	console.log(env.WECHAT_ILINK);
 	if (env.WECHAT_ILINK) {
+		console.log("开始触发发送微信机器人消息....");
 		const { token, userId }: WechatILinkConfig = JSON.parse(env.WECHAT_ILINK);
 
 		const uin = btoa(String(Math.floor(Math.random() * 4294967295)));
@@ -183,6 +182,8 @@ async function sendWechatILink(env: Env, message: string): Promise<void> {
 			})
 		}).catch(error => {
 			sendFeiShuNotify(env, '发送微信iLink信息异常：' + error.message);
+		}).then(res=>{
+			console.log("发送机器人消息返回成功",res);
 		});
 	}
 }
