@@ -1,10 +1,8 @@
-
 export interface Env {
 	// 在 Cloudflare Dashboard > Workers > 你的 Worker > Variables 中设置
 	NEW_API_CONFIG: string; // JSON 格式的站点配置数组 用NewApiConfig对象解析
 	FEI_SHU_BOT_KEY?: string; // 可选：PushPlus 推送 Token
-	ENABLE_HTTP_TRIGGER?: boolean;//是否开启http触发的能力
-
+	HTTP_TRIGGER_KEY?: String;//是否开启http触发的能力
 }
 
 interface NewApiConfig {
@@ -23,6 +21,14 @@ interface CheckinResponse {
 	};
 }
 
+interface UserInfoResponse {
+	success: boolean;
+	message?: string;
+	data?: {
+		quota?: number | string;
+	};
+}
+
 
 export default {
 
@@ -31,11 +37,14 @@ export default {
 	 */
 	async fetch(req, env) {
 		const url = new URL(req.url);
+		console.log(`Fetching ${url.pathname}`);
+		console.log(`Fetching ${url.searchParams}`);
+		console.log(`Fetching ${env.HTTP_TRIGGER_KEY}`);
 		if (url.pathname !== '/') {
 			return new Response();
 		}
 
-		if (env.ENABLE_HTTP_TRIGGER) {
+		if (env.HTTP_TRIGGER_KEY && url.searchParams.get('trigger_key') === env.HTTP_TRIGGER_KEY) {
 			const result = await doCheckin(env);
 			return new Response(JSON.stringify(result, null, 2), {
 				headers: { 'Content-Type': 'application/json' }
@@ -54,18 +63,24 @@ export default {
 
 async function doCheckin(env: Env): Promise<{ success: boolean; results: any[] }> {
 	const sites: NewApiConfig[] = JSON.parse(env.NEW_API_CONFIG || '[]');
-	const results = [];
+	const results: any[] = [];
 
 	for (const site of sites) {
 		try {
 			console.log(`[${site.name}] 开始签到...`);
 
 			const result = await checkinSingle(site);
+			const balanceResult = await getAccountBalance(site);
 			results.push({
 				site: site.name,
 				success: result.success,
 				message: result.message,
-				data: result.data
+				data: {
+					...result.data,
+					balance: balanceResult.balance,
+					balanceStr: balanceResult.balance ? renderQuota(balanceResult.balance) : null,
+					balanceMessage: balanceResult.message
+				}
 			});
 
 			// 简单防并发，间隔 2 秒
@@ -87,10 +102,8 @@ async function doCheckin(env: Env): Promise<{ success: boolean; results: any[] }
 	return { success: results.every(r => r.success), results };
 }
 
-async function checkinSingle(site: NewApiConfig): Promise<CheckinResponse> {
-	const checkinUrl = `${site.url}/api/user/checkin`;
-
-	const headers = {
+function buildAuthHeaders(site: NewApiConfig) {
+	return {
 		'Content-Type': 'application/json',
 		'Cookie': `session=${site.session}`,
 		'New-API-User': site.userId,
@@ -98,10 +111,14 @@ async function checkinSingle(site: NewApiConfig): Promise<CheckinResponse> {
 		'Accept': 'application/json',
 		'Referer': `${site.url}/`
 	};
+}
+
+async function checkinSingle(site: NewApiConfig): Promise<CheckinResponse> {
+	const checkinUrl = `${site.url}/api/user/checkin`;
 
 	const response = await fetch(checkinUrl, {
 		method: 'POST',
-		headers: headers
+		headers: buildAuthHeaders(site)
 	});
 
 	if (!response.ok) {
@@ -112,6 +129,34 @@ async function checkinSingle(site: NewApiConfig): Promise<CheckinResponse> {
 	}
 
 	return await response.json();
+}
+
+async function getAccountBalance(site: NewApiConfig): Promise<{ balance?: number; message?: string }> {
+	try {
+		const response = await fetch(`${site.url}/api/user/self`, {
+			method: 'GET',
+			headers: buildAuthHeaders(site)
+		});
+
+		if (!response.ok) {
+			return { message: `余额查询失败: HTTP ${response.status}` };
+		}
+
+		const result: UserInfoResponse = await response.json();
+		if (!result.success) {
+			return { message: `余额查询失败: ${result.message || '未知错误'}` };
+		}
+
+		const quota = Number(result.data?.quota);
+		if (!Number.isFinite(quota)) {
+			return { message: '余额查询失败: 未返回有效余额' };
+		}
+
+		return { balance: quota };
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		return { message: `余额查询失败: ${message}` };
+	}
 }
 
 async function sendNotification(env: Env, results: any[]): Promise<void> {
@@ -129,7 +174,9 @@ async function sendNotification(env: Env, results: any[]): Promise<void> {
 		...results.map(r => {
 			const icon = r.success ? '✅' : '❌';
 			const detail = r.data?.quota_awarded ? `(+${renderQuota(r.data.quota_awarded)} 额度)` : '';
-			return `${icon} ${r.site}: ${r.message || '未知'} ${detail}`;
+			const balance = r.data.balance !== undefined ? ` 余额: ${renderQuota(r.data.balance)}` : '';
+			const balanceMessage = r.data.balanceMessage ? ` ${r.data.balanceMessage}` : '';
+			return `${icon} ${r.site}: ${r.message || '未知'} ${detail}${balance}${balanceMessage}`;
 		})
 	];
 
